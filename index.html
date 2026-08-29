@@ -49,7 +49,7 @@ button{height:50px;border:0;border-radius:12px;padding:0 5px;font-size:18px;font
   </div>
   <div id="summary" class="summary"></div><div id="results"></div><div id="status" class="status"></div>
 </div>
-<div class="versionMark">版本 260829-1534 · iPhone键盘修复</div>
+<div class="versionMark">版本 260829-1610 · iPhone键盘重建修复</div>
 <script>
 const START=new Date(2025,0,1), END=new Date(2029,11,31), STORAGE_KEY='memo_2025_2029_v1';
 const HOLIDAYS={"250101":"元旦","250128":"除夕","250129":"春节","250212":"元宵节","250214":"情人节","250301":"龙抬头","250308":"妇女节","250312":"植树节","250317":"圣帕特里克节","250401":"愚人节","250404":"清明节","250420":"复活节","250422":"世界地球日","250501":"劳动节","250504":"青年节","250511":"母亲节","250512":"国际护士节","250531":"端午节","250601":"儿童节","250615":"父亲节","250701":"建党节","250801":"建军节","250829":"七夕","250906":"中元节","250910":"教师节","251001":"国庆节","251006":"中秋节","251029":"重阳节","251031":"万圣夜","251101":"万圣节","251127":"感恩节","251213":"国家公祭日","251224":"平安夜","251225":"圣诞节","251231":"跨年夜","260101":"元旦","260126":"腊八节","260210":"北方小年","260211":"南方小年","260214":"情人节","260216":"除夕","260217":"春节","260303":"元宵节","260308":"妇女节","260312":"植树节","260317":"圣帕特里克节","260320":"龙抬头","260401":"愚人节","260405":"清明节 / 复活节","260422":"世界地球日","260501":"劳动节","260504":"青年节","260510":"母亲节","260512":"国际护士节","260601":"儿童节","260619":"端午节","260621":"父亲节","260701":"建党节","260801":"建军节","260819":"七夕","260827":"中元节","260910":"教师节","260925":"中秋节","261001":"国庆节","261018":"重阳节","261031":"万圣夜","261101":"万圣节","261126":"感恩节","261213":"国家公祭日","261224":"平安夜","261225":"圣诞节","261231":"跨年夜","270101":"元旦","270115":"腊八节","270130":"北方小年","270131":"南方小年","270205":"除夕","270206":"春节","270214":"情人节","270220":"元宵节","270308":"妇女节","270309":"龙抬头","270312":"植树节","270317":"圣帕特里克节","270328":"复活节","270401":"愚人节","270405":"清明节","270422":"世界地球日","270501":"劳动节","270504":"青年节","270509":"母亲节","270512":"国际护士节","270601":"儿童节","270609":"端午节","270620":"父亲节","270701":"建党节","270801":"建军节","270808":"七夕","270816":"中元节","270910":"教师节","270915":"中秋节","271001":"国庆节","271008":"重阳节","271031":"万圣夜","271101":"万圣节","271125":"感恩节","271213":"国家公祭日","271224":"平安夜","271225":"圣诞节","271231":"跨年夜","280101":"元旦","280104":"腊八节","280119":"北方小年","280120":"南方小年","280125":"除夕","280126":"春节","280209":"元宵节","280214":"情人节","280226":"龙抬头","280308":"妇女节","280312":"植树节","280317":"圣帕特里克节","280401":"愚人节","280404":"清明节","280416":"复活节","280422":"世界地球日","280501":"劳动节","280504":"青年节","280512":"国际护士节","280514":"母亲节","280528":"端午节","280601":"儿童节","280618":"父亲节","280701":"建党节","280801":"建军节","280826":"七夕","280903":"中元节","280910":"教师节","281001":"国庆节","281003":"中秋节","281026":"重阳节","281031":"万圣夜","281101":"万圣节","281123":"感恩节","281213":"国家公祭日","281224":"平安夜","281225":"圣诞节","281231":"跨年夜","290101":"元旦","290122":"腊八节","290206":"北方小年","290207":"南方小年","290212":"除夕","290213":"春节","290214":"情人节","290227":"元宵节","290308":"妇女节","290312":"植树节","290316":"龙抬头","290317":"圣帕特里克节","290401":"愚人节 / 复活节","290404":"清明节","290422":"世界地球日","290501":"劳动节","290504":"青年节","290512":"国际护士节","290513":"母亲节","290601":"儿童节","290616":"端午节","290617":"父亲节","290701":"建党节","290801":"建军节","290816":"七夕","290824":"中元节","290910":"教师节","290922":"中秋节","291001":"国庆节","291016":"重阳节","291031":"万圣夜","291101":"万圣节","291122":"感恩节","291213":"国家公祭日","291224":"平安夜","291225":"圣诞节","291231":"跨年夜"};
@@ -77,20 +77,35 @@ function enableEditing(e){
  if(parseRange(raw)){setStatus('日期区间查询仅查看，不能批量编辑',false);return}
  const areas=[...document.querySelectorAll('.editArea')];
  if(!areas.length){setStatus('请先查看要修改的日期或内容',false);return}
- // iPhone Safari：必须在“编辑”按钮原生 click 手势内同步解除只读并 focus，
- // 不能在 pointerdown 里 preventDefault，否则可能只出现蓝框而不弹软键盘。
+
  let ta=(lastTouchedEditor&&document.body.contains(lastTouchedEditor))?lastTouchedEditor:null;
  if(!ta&&document.activeElement&&document.activeElement.classList&&document.activeElement.classList.contains('editArea'))ta=document.activeElement;
  if(!ta)ta=areas[0];
- try{ta.blur()}catch(_){ }
- unlockEditingForGesture();
+
+ // iPhone Safari：不要继续复用已经被触碰/聚焦过的 readonly textarea。
+ // 在“编辑”按钮的原生点击手势内，原位置重建一个全新的可编辑 textarea。
+ const newTa=document.createElement('textarea');
+ newTa.className=ta.className;
+ newTa.dataset.code=ta.dataset.code;
+ newTa.value=ta.value;
+ newTa.setAttribute('inputmode','text');
+ ta.replaceWith(newTa);
+ lastTouchedEditor=newTa;
+
+ // 保持原有逻辑：同屏其他结果也进入可编辑状态。
+ document.querySelectorAll('.editArea').forEach(x=>{
+   x.readOnly=false;
+   x.removeAttribute('readonly');
+ });
  document.querySelectorAll('.todoCtl').forEach(x=>x.style.display='flex');
- try{ta.focus()}catch(_){ }
- try{const n=ta.value.length;ta.setSelectionRange(n,n)}catch(_){ }
+
+ try{newTa.focus({preventScroll:false})}catch(_){try{newTa.focus()}catch(__){}}
+ try{const n=newTa.value.length;newTa.setSelectionRange(n,n)}catch(_){}
  setStatus('已进入编辑状态；可直接输入，完成后请按“保存”');
 }
+
 function saveVisible(show=true){const areas=[...document.querySelectorAll('.editArea')];if(!areas.length){if(show)setStatus('请先查看要修改的日期或内容',false);return 0}let n=0;for(const ta of areas){if(ta.readOnly)continue;const c=ta.dataset.code,card=ta.closest('.result'),todo=card.querySelector('.todoCheck')?.checked;let t=ta.value.trim();t=t.replace(/\s*待办\s*$/,'').trim();if(todo&&t)t=t+'\n待办';const old=getText(c);if(t!==old){if(t)DATA[c]={text:t,updatedAt:new Date().toISOString()};else delete DATA[c];n++}}if(n)persist();if(show)setStatus(n?`已保存 ${n} 处更新到本机`:'内容没有变化，已保持原保存内容');return n}
-function clearAll(){document.getElementById('q').value='';document.getElementById('summary').textContent='';document.getElementById('results').innerHTML='';setStatus('');document.getElementById('q').focus()}
+function clearAll(){try{if(document.activeElement&&document.activeElement.blur)document.activeElement.blur()}catch(_){}document.getElementById('q').value='';document.getElementById('summary').textContent='';document.getElementById('results').innerHTML='';lastTouchedEditor=null;setStatus('')}
 
 /* self-contained XLSX */
 function xmlEsc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')}
